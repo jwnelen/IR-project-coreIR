@@ -11,8 +11,6 @@ ix, collection = None, None
 
 def load_data():
     global collection
-    queries_dev = pd.read_csv('data/queries/queries.dev.tsv', sep='\t')
-
     # Loading this takes very long haha
     collection = pd.read_csv('data/collection.tsv', sep='\t')
 
@@ -26,24 +24,19 @@ def create_index():
     ix = index.create_in("indexdir", schema)
 
     writer = ix.writer()
-    for ind, row in collection.iterrows():
-        # For now only adding just a few haha
-        if ind % 10000 == 0:
-            writer.add_document(content=row[1])
+    # For now only adding just a few haha
+    size = 100000
+    for ind, row in collection.sample(n=size).iterrows():
+        writer.add_document(content=row[1])
 
+    # To finalize the indexing
     writer.commit()
 
 
-if __name__ == '__main__':
-    load_data()
-    print('collection is loaded')
-    # print(collection.head())
-
-    create_index()
-
-    print('created index, now searching')
+def initial_search():
+    global ix
     with ix.searcher() as searcher:
-        query = QueryParser("content", ix.schema).parse("lizards do protect")
+        query = QueryParser("content", ix.schema).parse("music")
         results = searcher.search(query, terms=True)
 
         for r in results:
@@ -52,8 +45,21 @@ if __name__ == '__main__':
             if results.has_matched_terms():
                 # What terms matched in the results?
                 print(results.matched_terms())
+                print(r)
 
         # What terms matched in each hit?
         print("matched terms")
         for hit in results:
             print(hit.matched_terms())
+            print(hit)
+
+
+if __name__ == '__main__':
+    load_data()
+    print('collection is loaded')
+
+    create_index()
+    print('created index, now searching')
+
+    initial_search()
+    print('done searching')
