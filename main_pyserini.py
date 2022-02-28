@@ -8,14 +8,15 @@ import json
 from os import path
 
 
-def searcher():
-    searcher = SimpleSearcher('indexes/collection_dev_json')
+def do_search():
+    searcher = SimpleSearcher('indexes/sample_collection_jsonl')
     searcher.set_bm25()
+    # But first, let me parse the kweries
     # searcher.batch_search()
     hits = searcher.search('what is a lobster roll?')
 
     for i in range(0, 10):
-        print(f'{i+1:2} {hits[i].docid:7} {hits[i].score:.5f} {hits[i].contents}')
+        print(f'{i + 1:2} {hits[i].docid:7} {hits[i].score:.5f} {hits[i].contents}')
         # print(hits[i])
 
     # print(get_topics('msmarco-passage-dev-subset'))
@@ -55,6 +56,4 @@ if __name__ == '__main__':
     #     df = pd.read_csv(collection_file, sep='\t')
     #     df.to_json(collection_file_json)
 
-
-    searcher()
-
+    do_search()
