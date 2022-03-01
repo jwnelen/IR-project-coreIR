@@ -9,20 +9,37 @@ from os import path
 
 
 def do_search():
-    searcher = SimpleSearcher('indexes/sample_collection_jsonl')
-    searcher.set_bm25()
-    # But first, let me parse the kweries
-    # searcher.batch_search()
-    hits = searcher.search('what is a lobster roll?')
+    # searcher = SimpleSearcher('indexes/sample_collection_jsonl')
+    # searcher.set_bm25()
 
-    for i in range(0, 10):
-        print(f'{i + 1:2} {hits[i].docid:7} {hits[i].score:.5f} {hits[i].contents}')
-        # print(hits[i])
+    index_reader = IndexReader('indexes/sample_collection_jsonl')
 
-    # print(get_topics('msmarco-passage-dev-subset'))
+    print(index_reader.stats())
+    d = []
 
-    # index_reader = IndexReader.from_prebuilt_index('msmarco-passage')
-    # index_reader.get_document_vector()
+    # print(index_reader.doc("0"))
+
+    # names = ['colA', 'colB'], header = None
+    qrels = pd.read_csv("data/qrels.dev.tsv", sep='\t', header=None)
+    queries = pd.read_csv("data/queries/queries.dev.tsv", sep='\t', names=['qid', 'query'], header=None)
+
+    print(qrels.head())
+    print(queries.head())
+
+    for index, row in qrels.iterrows():
+        qid = row[0]
+        docid = row[2]
+        query_frame = queries[queries["qid"] == qid]
+        query = query_frame["query"]
+        # index_reader.compute_query_document_score(docid="0", query="what was the immediate impact"))
+        if not query is None:
+            score = index_reader.compute_query_document_score(str(docid), str(query))
+            if score > 0.01:
+                # print(score)
+                d.append([1, qid, docid, score])
+
+    results = pd.DataFrame(d)
+    print(results.head(100))
 
 
 # Blatantly copied from https://www.geeksforgeeks.org/python-tsv-conversion-to-json/
