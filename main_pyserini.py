@@ -1,45 +1,70 @@
-from pyserini.search import SimpleSearcher
-from pyserini.search import get_topics
+import math
 from pyserini.index import IndexReader
+from pyserini.analysis import Analyzer, get_lucene_analyzer
 
 import pandas as pd
+import string
 
 import json
-from os import path
 
 
 def do_search():
-    # searcher = SimpleSearcher('indexes/sample_collection_jsonl')
-    # searcher.set_bm25()
-
     index_reader = IndexReader('indexes/sample_collection_jsonl')
-
-    print(index_reader.stats())
     d = []
 
-    # print(index_reader.doc("0"))
-
-    # names = ['colA', 'colB'], header = None
     qrels = pd.read_csv("data/qrels.dev.tsv", sep='\t', header=None)
     queries = pd.read_csv("data/queries/queries.dev.tsv", sep='\t', names=['qid', 'query'], header=None)
 
+    # Default analyzer for English uses the Porter stemmer:
+    analyzer = Analyzer(get_lucene_analyzer())
+
+    print(index_reader.stats())
     print(qrels.head())
     print(queries.head())
+    ep = 0.00001
+
+    N = index_reader.stats().get("documents")
 
     for index, row in qrels.iterrows():
         qid = row[0]
         docid = row[2]
         query_frame = queries[queries["qid"] == qid]
-        query = query_frame["query"]
-        # index_reader.compute_query_document_score(docid="0", query="what was the immediate impact"))
+        query = query_frame["query"].iloc[0]
+
+        document_vector = index_reader.get_document_vector(str(docid))
+
+        doc = index_reader.doc(str(docid))
+        # print('contents', json.loads(doc.raw()).get("contents"))
+        # print('vector', document_vector)
+        doc_length = len(json.loads(doc.raw()).get("contents").split())
+
+        tokens = analyzer.analyze(query)
+        # print('tokens', tokens)
+
+        tf_idfs = list()
+        for term in tokens:
+            # To prevent some null pointers
+            t = analyzer.analyze(term)
+            if len(t) > 0:
+                # document frequency, collection frequency
+                df, nk = index_reader.get_term_counts(term,
+                                                      analyzer=analyzer.analyzer)
+                idf = math.log(N / (nk + ep))
+
+                frequency_term_in_document = document_vector.get(term, 0)
+                tf = frequency_term_in_document / doc_length
+
+                tf_idf = tf * idf
+                tf_idfs.append(tf_idf)
+
         if not query is None:
             score = index_reader.compute_query_document_score(str(docid), str(query))
-            if score > 0.01:
-                # print(score)
-                d.append([1, qid, docid, score])
 
-    results = pd.DataFrame(d)
+            d.append([1, qid, docid, score, sum(tf_idfs)])
+
+    results = pd.DataFrame(d, columns={0: "rel", 1: "r", 2: "3", 3: 'as', 4: "tests"})
     print(results.head(100))
+    print(results.describe())
 
 
 # Blatantly copied from https://www.geeksforgeeks.org/python-tsv-conversion-to-json/
