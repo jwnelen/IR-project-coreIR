@@ -1,11 +1,11 @@
 import math
+import pandas as pd
+import json
+
 from pyserini.index import IndexReader
 from pyserini.analysis import Analyzer, get_lucene_analyzer
 
-import pandas as pd
-import string
-
-import json
+from progressbar import ProgressBar, Percentage, Bar
 
 
 def do_search():
@@ -59,12 +59,17 @@ def do_search():
 
         if not query is None:
             score = index_reader.compute_query_document_score(str(docid), str(query))
+            query_length = len(query.split())
+            d.append([1, qid, docid, score, sum(tf_idfs), doc_length, query_length])
 
-            d.append([1, qid, docid, score, sum(tf_idfs)])
+    results = pd.DataFrame(d, columns=["relevance", "qid", "docid", "BM25", "TFIDF", "doc length", "query length"])
+    # set the max columns to none
+    pd.set_option('display.max_columns', None)
 
-    results = pd.DataFrame(d, columns={0: "rel", 1: "r", 2: "3", 3: 'as', 4: "tests"})
-    print(results.head(100))
+    print(results.head())
     print(results.describe())
+
+    results.to_csv('results')
 
 
 # Blatantly copied from https://www.geeksforgeeks.org/python-tsv-conversion-to-json/
