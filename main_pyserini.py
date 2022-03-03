@@ -8,8 +8,9 @@ from pyserini.analysis import Analyzer, get_lucene_analyzer
 
 def learn_to_rank():
     index_reader = IndexReader('indexes/sample_collection_jsonl')
-    qrels = pd.read_csv("data/qrels.dev.tsv", sep='\t', header=None)
-    queries = pd.read_csv("data/queries/queries.dev.tsv", sep='\t', names=['qid', 'query'], header=None)
+    # TODO: Watch out, training takes around 15 min
+    qrels = pd.read_csv("data/qrels.train.tsv", sep='\t', header=None)
+    queries = pd.read_csv("data/queries/queries.train.tsv", sep='\t', names=['qid', 'query'], header=None)
 
     training_data_list = list()
     # Default analyzer for English uses the Porter stemmer:
@@ -64,7 +65,7 @@ def learn_to_rank():
     print(results.head())
     print(results.describe())
 
-    results.to_csv('results.csv')
+    results.to_csv('results.train.csv')
 
 
 # Blatantly copied from https://www.geeksforgeeks.org/python-tsv-conversion-to-json/
@@ -87,7 +88,7 @@ def tsv2json(input_file, output_file):
             output_file.write(json.dumps(arr, indent=4))
 
 
-def toPrintString(qid, bm25, tdidf, doc_length, query_length):
+def to_feature_string(qid, bm25, tdidf, doc_length, query_length):
     # 3 qid:1 1:1 2:1 3:0 4:0.2 5:0
     return f"1 qid:{qid} 1:{bm25} 2:{tdidf} 3:{doc_length} 4:{query_length}"
 
@@ -96,17 +97,18 @@ if __name__ == '__main__':
     # learn_to_rank()
 
     # For this, first the learn to rank should be called
-    training_data = pd.read_csv("results.csv")
+    training_data = pd.read_csv("results.train.csv")
     print(training_data)
 
     with open('training.txt', 'w') as f:
         for index, row in training_data.iterrows():
             qid = row[2]
+            # docid is index 3 but we don't need that anymore
             bm25 = row[4]
             tfidf = row[5]
             doc_length = row[6]
             query_length = row[7]
-            f.write(toPrintString(qid, bm25, tfidf, doc_length, query_length))
+            f.write(to_feature_string(qid, bm25, tfidf, doc_length, query_length))
             f.write("\n")
 
     f.close()
