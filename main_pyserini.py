@@ -9,8 +9,8 @@ from pyserini.analysis import Analyzer, get_lucene_analyzer
 def learn_to_rank():
     index_reader = IndexReader('indexes/sample_collection_jsonl')
     # TODO: Watch out, training takes around 15 min
-    qrels = pd.read_csv("data/qrels.train.tsv", sep='\t', header=None)
-    queries = pd.read_csv("data/queries/queries.train.tsv", sep='\t', names=['qid', 'query'], header=None)
+    qrels = pd.read_csv("data/2019qrels-pass.txt", sep='\s+', header=None)
+    queries = pd.read_csv("data/msmarco-test2019-queries.tsv", sep='\t', names=['qid', 'query'], header=None)
 
     training_data_list = list()
     # Default analyzer for English uses the Porter stemmer:
@@ -55,7 +55,8 @@ def learn_to_rank():
         if not query is None:
             score = index_reader.compute_query_document_score(str(docid), str(query))
             query_length = len(query.split())
-            training_data_list.append([1, qid, docid, score, sum(tf_idfs), doc_length, query_length])
+            rel = row[3]
+            training_data_list.append([rel, qid, docid, score, sum(tf_idfs), doc_length, query_length])
 
     results = pd.DataFrame(training_data_list,
                            columns=["relevance", "qid", "docid", "BM25", "TFIDF", "doc length", "query length"])
@@ -65,7 +66,7 @@ def learn_to_rank():
     print(results.head())
     print(results.describe())
 
-    results.to_csv('results.train.csv')
+    results.to_csv('results-2019.train.csv')
 
 
 # Blatantly copied from https://www.geeksforgeeks.org/python-tsv-conversion-to-json/
@@ -88,27 +89,29 @@ def tsv2json(input_file, output_file):
             output_file.write(json.dumps(arr, indent=4))
 
 
-def to_feature_string(qid, bm25, tdidf, doc_length, query_length):
-    # 3 qid:1 1:1 2:1 3:0 4:0.2 5:0
-    return f"1 qid:{qid} 1:{bm25} 2:{tdidf} 3:{doc_length} 4:{query_length}"
+def to_feature_string(rel, qid, bm25, tdidf, doc_length, query_length):
+    # 1 qid:1 1:1 2:1 3:0 4:0.2 5:0
+    return f"{rel} qid:{qid} 1:{bm25} 2:{tdidf} 3:{doc_length} 4:{query_length}"
 
 
 if __name__ == '__main__':
     # learn_to_rank()
 
     # For this, first the learn to rank should be called
-    training_data = pd.read_csv("results.train.csv")
+    training_data = pd.read_csv("results-2019.train.csv")
     print(training_data)
 
-    with open('training.txt', 'w') as f:
+    # Where it should be saved
+    with open('training-2019-data.txt', 'w') as f:
         for index, row in training_data.iterrows():
+            rel = row[1]
             qid = row[2]
             # docid is index 3 but we don't need that anymore
             bm25 = row[4]
             tfidf = row[5]
             doc_length = row[6]
             query_length = row[7]
-            f.write(to_feature_string(qid, bm25, tfidf, doc_length, query_length))
+            f.write(to_feature_string(rel, qid, bm25, tfidf, doc_length, query_length))
             f.write("\n")
 
     f.close()
