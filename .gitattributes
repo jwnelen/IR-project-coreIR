@@ -1,2 +1,2 @@
 *.tsv filter=lfs diff=lfs merge=lfs -text
-*.doc eol=lf
+*.doc filter=lfs diff=lfs merge=lfs -text
